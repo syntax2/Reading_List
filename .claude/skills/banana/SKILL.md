@@ -93,6 +93,7 @@ Choose the expertise lens that best fits the request:
 | **Landscape** | Environments, backgrounds, wallpapers | Atmospheric perspective, depth layers, time of day |
 | **Abstract** | Patterns, textures, generative art | Color theory, mathematical forms, movement |
 | **Infographic** | Data visualization, diagrams, charts | Layout structure, text rendering, hierarchy |
+| **Architectural** | Interior/room renders, 2D floor plans, zoning diagrams | Wall-by-wall composition, camera placement, materials/finishes, see below |
 
 ### Step 3: Construct the Reasoning Brief
 
@@ -145,6 +146,32 @@ context and supporting elements].
 
 For more templates see `references/prompt-engineering.md` → Proven Prompt Templates.
 
+### Step 3.5: Architectural Mode (interior renders & floor plans)
+
+Use this mode for room renders, furniture-placement visualizations, or 2D floor/zoning plans.
+These have failure patterns the other domain modes don't, learned from real client work:
+
+- **Confirm camera position before generating.** State explicitly where a real person would
+  stand (usually the entry/hall door looking inward) and get the user to confirm it. Wrong
+  camera placement is the single most common cause of rejected architectural renders.
+- **3-wall composition technique.** A 4-wall room described in one prompt confuses the model
+  about which furniture/door belongs on which wall. Describe only 3 of the 4 walls per
+  generation -- omit the most door/window-dense or geometrically complex wall, and position
+  the camera near that omitted wall, facing into the room.
+- **No negative-prompt parameter exists.** Describe absences positively: "no clutter, no
+  plants" rather than relying on negative weighting (see Positive Framing section in
+  `prompt-engineering.md`).
+- **2D floor plans need an explicit style call-out**: prompt for "top-down 2D architectural
+  floor plan, blueprint/CAD line-drawing style." Text and dimension labels render unreliably
+  in any of these image models -- prefer simple room-name labels over dimension strings, and
+  always tell the user the output is a visual zoning reference, not a substitute for a real
+  dimensioned CAD file.
+- **Validate geometry against ground truth before generating.** If the user has an architect's
+  plan (PDF/photo), cross-check door/window/wall positions against it first -- regenerating to
+  fix geometry mismatches after the fact costs real money (see Cost Tracking).
+- **Door swings and clearances matter.** Always state swing direction (inward/outward) for any
+  door near furniture, since this is a frequent source of impractical, non-buildable layouts.
+
 ### Step 4: Select Aspect Ratio
 
 Match ratio to use case -- call `set_aspect_ratio` BEFORE generating:
@@ -170,9 +197,16 @@ Choose output resolution based on intended use:
 | `imageSize` | When to use |
 |-------------|-------------|
 | `512` | Quick drafts, rapid iteration |
-| `1K` | Budget-conscious, web thumbnails, social media |
-| `2K` | **Default** -- quality assets, most use cases |
-| `4K` | Print production, hero images, final deliverables |
+| `1K` | **Default** -- safest choice, works reliably everywhere |
+| `2K` | Quality assets, only after confirming the environment's network path supports it |
+| `4K` | Print production, hero images -- same caveat as 2K |
+
+**Reliability warning:** `2K`/`4K` responses can get truncated (`IncompleteRead`) when traffic
+passes through an outbound proxy -- this has been observed in some sandboxed/managed
+environments. Default to `1K` unless the user needs higher fidelity and you've confirmed
+larger sizes complete successfully in this session. The `scripts/generate.py` fallback
+auto-downgrades to `1K` and retries once if it hits this truncation, but the MCP path
+may not have that safety net.
 
 Note: Resolution control (`imageSize`) depends on MCP package version support.
 
@@ -289,9 +323,10 @@ Select model based on task requirements:
 | Scenario | Model | Resolution | Brief Level | When |
 |----------|-------|-----------|-------------|------|
 | Quick draft | `gemini-2.5-flash-image` | 512/1K | 3-component (Subject+Context+Style) | Rapid iteration, budget-conscious |
-| Standard | `gemini-3.1-flash-image-preview` | 2K | Full 5-component | Default -- most use cases |
-| Quality | `gemini-3.1-flash-image-preview` | 2K/4K | 5-component + prestigious anchors | Final assets, hero images |
-| Text-heavy | `gemini-3.1-flash-image-preview` | 2K | 5-component, thinking: high | Logos, infographics, text rendering |
+| Standard | `gemini-3.1-flash-image-preview` | 1K | Full 5-component | Default -- most use cases |
+| Quality | `gemini-3.1-flash-image-preview` | 2K/4K (after confirming network path supports it) | 5-component + prestigious anchors | Final assets, hero images |
+| Text-heavy | `gemini-3.1-flash-image-preview` | 1K | 5-component, thinking: high | Logos, infographics, text rendering |
+| Architectural / floor plan | `gemini-3.1-flash-image-preview` | 1K | 5-component, see Architectural Mode | Room renders, 2D zoning plans |
 | Batch/bulk | Any model via Batch API | 1K | 5-component | Non-urgent bulk -- 50% cost discount |
 
 Default: `gemini-3.1-flash-image-preview`. Switch with `set_model` when routing to 2.5 Flash.

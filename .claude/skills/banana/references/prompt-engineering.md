@@ -116,6 +116,23 @@ Reminiscent of Dorothea Lange's documentary portraiture"
 **Data viz:** bar charts, pie charts, flow diagrams, timelines, comparison tables
 **Colors:** high-contrast, accessible palette, consistent brand colors
 
+### Architectural Mode
+**Room renders:** describe only 3 of 4 walls per generation (omit the most complex wall;
+camera sits near it, facing into the room). State camera height (~5'6", standing eye level)
+and exact position (e.g., "standing in the doorway looking toward the far wall").
+**Materials/finishes:** name real material/paint terms ("warm sandstone beige matte emulsion",
+"engineered oak flooring", "soft-close sliding wardrobe") -- generic terms like "nice flooring"
+produce unbuildable, decorative-only results.
+**Door/furniture clearances:** always state swing direction and clearance, e.g. "door swings
+inward 2.5 ft, no furniture within that arc."
+**2D floor plans:** prompt explicitly for "top-down 2D architectural floor plan, blueprint/CAD
+line-drawing style"; use simple room-name labels only, not dimension strings (text rendering
+is unreliable); include "room labels, door swing arcs, north arrow" if needed.
+**Negative space:** describe absences positively only -- "no clutter, no plants" -- there is no
+negative-prompt parameter (see Positive Framing below).
+**Context anchors:** "Architectural Digest interior photography aesthetic" works better than
+banned hype keywords like "ultra-realistic" or "8K".
+
 ### Abstract Mode
 **Geometry:** fractals, voronoi tessellation, spirals, fibonacci, organic flow, crystalline
 **Textures:** marble veining, fluid dynamics, smoke wisps, ink diffusion, watercolor bleed

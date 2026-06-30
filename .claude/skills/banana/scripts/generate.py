@@ -11,6 +11,7 @@ Usage:
 
 import argparse
 import base64
+import http.client
 import json
 import os
 import sys
@@ -20,7 +21,9 @@ from datetime import datetime
 from pathlib import Path
 
 DEFAULT_MODEL = "gemini-3.1-flash-image-preview"
-DEFAULT_RESOLUTION = "2K"  # Must be uppercase -- lowercase values are silently rejected by the API
+DEFAULT_RESOLUTION = "1K"  # Must be uppercase -- lowercase values are silently rejected by the API
+# NOTE: 2K reliably truncates (IncompleteRead) through some outbound proxies.
+# Default to 1K; only request 2K/4K if the environment is confirmed to support it.
 DEFAULT_RATIO = "1:1"
 OUTPUT_DIR = Path.home() / "Documents" / "nanobanana_generated"
 API_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
@@ -60,11 +63,26 @@ def generate_image(prompt, model, aspect_ratio, resolution, api_key,
 
     max_retries = 3
     result = None
+    downgraded_resolution = False
     for attempt in range(max_retries):
         try:
             with urllib.request.urlopen(req, timeout=120) as resp:
                 result = json.loads(resp.read().decode("utf-8"))
             break  # Success
+        except http.client.IncompleteRead:
+            # Higher resolutions can get truncated by intermediate proxies.
+            # Drop to 1K once and retry rather than failing the whole request.
+            if resolution != "1K" and not downgraded_resolution:
+                downgraded_resolution = True
+                print(json.dumps({"retry": True, "reason": "incomplete_read_downgrading_resolution",
+                                   "from": resolution, "to": "1K"}), file=sys.stderr)
+                resolution = "1K"
+                body["generationConfig"]["imageConfig"]["imageSize"] = resolution
+                data = json.dumps(body).encode("utf-8")
+                req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"}, method="POST")
+                continue
+            print(json.dumps({"error": True, "message": "Response truncated (IncompleteRead) even at 1K resolution. Proxy or network issue."}))
+            sys.exit(1)
         except urllib.error.HTTPError as e:
             error_body = e.read().decode("utf-8") if e.fp else ""
             if e.code == 429 and attempt < max_retries - 1:
